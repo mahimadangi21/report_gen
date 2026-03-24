@@ -66,18 +66,22 @@ def extract_skills(text: str) -> Tuple[List[str], List[str]]:
     return list(set(found_tech)), list(set(found_soft))
 
 def analyze_sentiment(text: str) -> Tuple[str, float]:
-    """Analyzes sentiment using TextBlob."""
-    if not text:
+    """Analyzes sentiment using TextBlob with safety fallback."""
+    if not text or len(text.strip()) < 5:
         return "Neutral", 0.0
-    blob = TextBlob(text)
-    polarity = blob.sentiment.polarity
-    if polarity > 0.1:
-        sentiment = "Positive"
-    elif polarity < -0.1:
-        sentiment = "Negative"
-    else:
-        sentiment = "Neutral"
-    return sentiment, polarity
+    try:
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity
+        if polarity > 0.1:
+            sentiment = "Positive"
+        elif polarity < -0.1:
+            sentiment = "Negative"
+        else:
+            sentiment = "Neutral"
+        return sentiment, polarity
+    except Exception as e:
+        print(f"Sentiment Analysis Error: {e}")
+        return "Neutral", 0.0
 
 def calculate_keyword_density_score(text: str, keywords: List[str]) -> float:
     """Approximates a resume score based on density of matching keywords."""
