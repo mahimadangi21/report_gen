@@ -53,6 +53,14 @@ async def sanitize_json_request(request: Request, call_next):
 
     return await call_next(request)
 
+@app.get("/")
+def root():
+    return {
+        "message": "Welcome to the AI Hiring Evaluator API.",
+        "documentation": "/docs",
+        "health_check": "/health"
+    }
+
 @app.get("/health")
 def health_check():
     return {"status": "ok", "message": "Hiring Evaluation Service is running"}
