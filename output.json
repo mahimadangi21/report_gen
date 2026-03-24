@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "report": {
+    "candidate_name": "The candidate",
+    "role": "DS",
+    "sentiment": "Negative",
+    "confidence_level": "Medium",
+    "technical_skills": [],
+    "soft_skills": [],
+    "weaknesses": [
+      "Limited exposure to end-to-end model deployment schemas"
+    ],
+    "interview_score": 46,
+    "resume_score": 85.0,
+    "coding_score": 90.0,
+    "final_score": 70.9,
+    "recommendation": "Consider",
+    "summary": "The candidate demonstrated a negative overall impression during the Data Science interview, communicating with medium confidence. \n\u2022 Key strengths: Proven familiarity with core Data Science concepts.\n\u2022 Areas for improvement: Limited exposure to end-to-end model deployment schemas.\n\u2022 Scoring metrics: Interview Score: 46/100 | Final Assessment Score: 70.9/100.\nConclusion: We recommend the status as 'Consider' based on this evaluation.",
+    "llm_success": false,
+    "evaluation_method": "NLP_Keyword_Matcher"
+  }
+}
