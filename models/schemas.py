@@ -37,7 +37,6 @@ class InsightsModel(BaseModel):
     interviewer_notes: str
 
 class ReportModel(BaseModel):
-    candidate_name: str
     role: str
     scores: ScoresModels
     analysis: AnalysisModel

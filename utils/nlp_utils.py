@@ -10,7 +10,9 @@ TECHNICAL_SKILLS = [
     "docker", "kubernetes", "aws", "azure", "fastapi", "django", "flask",
     "react", "angular", "vue", "javascript", "typescript", "git", "nlp", "ai",
     "deep learning", "tensorflow", "pytorch", "scikit-learn", "data science",
-    "api", "linux", "cloud", "agile", "scrum", "REST", "graphql", "nosql", "mongodb"
+    "api", "linux", "cloud", "agile", "scrum", "REST", "graphql", "nosql", "mongodb",
+    "php", "quality assurance", "data engineering", "business", "analytics", "mern",
+    "dataenineering", "bussiness"
 ]
 
 SOFT_SKILLS = [

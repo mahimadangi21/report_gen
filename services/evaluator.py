@@ -123,7 +123,6 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
 
     # Build Response using Pydantic Models
     report = ReportModel(
-        candidate_name=candidate_name,
         role=role,
         scores=ScoresModels(
             resume_score=round(resume_score, 2),
