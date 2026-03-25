@@ -43,22 +43,30 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
                                len([s for s in jd_soft if s in all_candidate_soft])
         skill_match_percentage = (matched_skills_count / total_jd_skills) * 100
     else:
-        skill_match_percentage = 100.0
+        # If no JD skills defined, match against all technical skills as a generic benchmark
+        from utils.nlp_utils import TECHNICAL_SKILLS
+        matched_count = len([s for s in TECHNICAL_SKILLS if s in all_candidate_tech])
+        skill_match_percentage = min(100.0, (matched_count / 10.0) * 100) # Benchmark against 10 skills
     
     # 3. Handle Resume Score
     resume_score = request_data.resume_score
     if resume_score is None:
         resume_score = calculate_keyword_density_score(text_to_match, jd_tech + jd_soft)
     
-    # 4. Final Score Calculation (If interview score missing, split 3 ways)
+    # 4. Handle Interview Score (Estimate from transcript if missing)
     coding_score = request_data.coding_score
     interview_score = getattr(request_data, "interview_score", None)
     
-    if interview_score is not None:
-        final_score = (resume_score * 0.25) + (final_jd_match_score * 0.25) + (coding_score * 0.25) + (interview_score * 0.25)
-    else:
-        final_score = (resume_score * 0.334) + (final_jd_match_score * 0.333) + (coding_score * 0.333)
-        interview_score = 0.0 # Default for output schema compatibility
+    if interview_score is None or interview_score == 0:
+        # Estimate interview score
+        from utils.nlp_utils import TECHNICAL_SKILLS
+        tech_density = calculate_keyword_density_score(request_data.transcript, TECHNICAL_SKILLS)
+        _, polarity = analyze_sentiment(request_data.transcript)
+        # Sentiment weight (0.3) + Technical depth (0.7)
+        interview_score = (tech_density * 0.7) + ((polarity + 1) * 50 * 0.3)
+        interview_score = min(100.0, max(0.0, interview_score))
+
+    final_score = (resume_score * 0.25) + (final_jd_match_score * 0.25) + (coding_score * 0.25) + (interview_score * 0.25)
     
     # 5. Sentiment Analysis on Transcript
     sentiment, polarity = analyze_sentiment(request_data.transcript)
@@ -117,8 +125,6 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
     if getattr(request_data, "interview_score", 100) < 70:
         improvement_suggestions.append("Needs to focus on interview performance and communication clearly.")
     
-    interviewer_notes = "Based on automated NLP analysis only."
-    
     reason = f"Decision '{decision}' made based on overall score of {final_score:.1f} and skill match of {skill_match_percentage:.1f}%."
 
     # Build Response using Pydantic Models
@@ -150,8 +156,7 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
         ),
         insights=InsightsModel(
             candidate_summary=candidate_summary,
-            improvement_suggestions=improvement_suggestions,
-            interviewer_notes=interviewer_notes
+            improvement_suggestions=improvement_suggestions
         )
     )
     

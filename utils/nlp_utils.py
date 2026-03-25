@@ -12,7 +12,9 @@ TECHNICAL_SKILLS = [
     "deep learning", "tensorflow", "pytorch", "scikit-learn", "data science",
     "api", "linux", "cloud", "agile", "scrum", "REST", "graphql", "nosql", "mongodb",
     "php", "quality assurance", "data engineering", "business", "analytics", "mern",
-    "dataenineering", "bussiness"
+    "dataenineering", "bussiness", "power bi", "mysql", "databricks", "apache airflow", 
+    "spark sql", "star schema", "snowflake schema", "apache spark", "pyspark", "spark", 
+    "hadoop", "etl", "elt", "indexing", "primary key", "lambda", "data warehouse", "data lake"
 ]
 
 SOFT_SKILLS = [
