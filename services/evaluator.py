@@ -7,23 +7,32 @@ from utils.nlp_utils import (
     compute_similarity, extract_skills, analyze_sentiment, calculate_keyword_density_score
 )
 
+# Hardcoded Job Description as per user request to move from input
+DEFAULT_JD = """
+Looking for a candidate with strong proficiency in Python and Data Engineering (Hadoop, Apache Spark, Databricks). 
+Should have experience with ETL/ELT pipelines, SQL, and Data Warehousing (Star/Snowflake schemas). 
+Knowledge of MERN stack, PHP, or Cloud (AWS/Azure) is a plus. 
+Good problem-solving and communication skills are required.
+"""
+
 def evaluate_candidate_nlp(request_data) -> ReportModel:
     # Handle the new 4-field schema by providing defaults for missing info
-    candidate_name = getattr(request_data, "candidate_name", "Anonymous Candidate")
-    role = getattr(request_data, "role", "Unknown Role")
+    # Fields no longer in the request body
+    candidate_name = "Anonymous Candidate"
+    role = "Software Developer"
     resume_text = getattr(request_data, "resume_text", "")
     
     # 1. Similarity & Match Scores
-    # Use transcript as resume if resume_text is empty
+    # Use hardcoded DEFAULT_JD instead of request body input
     text_to_match = resume_text if resume_text else request_data.transcript
-    jd_match_score = compute_similarity(text_to_match, request_data.job_description)
-    transcript_jd_match = compute_similarity(request_data.transcript, request_data.job_description)
+    jd_match_score = compute_similarity(text_to_match, DEFAULT_JD)
+    transcript_jd_match = compute_similarity(request_data.transcript, DEFAULT_JD)
     
     # Blend JD match score (Resume vs JD heavily weighted, Transcript vs JD is bonus context)
     final_jd_match_score = (jd_match_score * 0.7) + (transcript_jd_match * 0.3)
     
     # 2. Extract Skills from JD and text
-    jd_tech, jd_soft = extract_skills(request_data.job_description)
+    jd_tech, jd_soft = extract_skills(DEFAULT_JD)
     resume_tech, resume_soft = extract_skills(resume_text)
     transcript_tech, transcript_soft = extract_skills(request_data.transcript)
     
@@ -55,6 +64,7 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
     
     # 4. Handle Interview Score (Estimate from transcript if missing)
     coding_score = request_data.coding_score
+    mcq_score = request_data.mcq_score
     interview_score = getattr(request_data, "interview_score", None)
     
     if interview_score is None or interview_score == 0:
@@ -66,7 +76,8 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
         interview_score = (tech_density * 0.7) + ((polarity + 1) * 50 * 0.3)
         interview_score = min(100.0, max(0.0, interview_score))
 
-    final_score = (resume_score * 0.25) + (final_jd_match_score * 0.25) + (coding_score * 0.25) + (interview_score * 0.25)
+    # Calculate final score with 4 components (25% weight each)
+    final_score = (resume_score * 0.25) + (coding_score * 0.25) + (mcq_score * 0.25) + (interview_score * 0.25)
     
     # 5. Sentiment Analysis on Transcript
     sentiment, polarity = analyze_sentiment(request_data.transcript)
@@ -132,8 +143,8 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
         role=role,
         scores=ScoresModels(
             resume_score=round(resume_score, 2),
-            jd_match_score=round(final_jd_match_score, 2),
             coding_score=round(coding_score, 2),
+            mcq_score=round(mcq_score, 2),
             interview_score=round(interview_score, 2),
             final_score=round(final_score, 2)
         ),

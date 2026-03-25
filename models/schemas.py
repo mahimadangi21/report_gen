@@ -2,18 +2,16 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class GenerateReportRequest(BaseModel):
-    candidate_name: Optional[str] = "Anonymous Candidate"
-    role: Optional[str] = "Unknown Role"
-    job_description: str
     transcript: str
     resume_score: float
     coding_score: float
+    mcq_score: float
     interview_score: Optional[float] = 0.0
 
 class ScoresModels(BaseModel):
     resume_score: float
-    jd_match_score: float
     coding_score: float
+    mcq_score: float
     interview_score: float
     final_score: float
 
