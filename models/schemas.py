@@ -22,11 +22,6 @@ class AnalysisModel(BaseModel):
     weaknesses: List[str]
     skill_match_percentage: float
 
-class SkillsModel(BaseModel):
-    technical_skills: List[str]
-    soft_skills: List[str]
-    missing_skills: List[str]
-
 class RecommendationModel(BaseModel):
     decision: str
     reason: str
@@ -40,7 +35,6 @@ class ReportModel(BaseModel):
     role: str
     scores: ScoresModels
     analysis: AnalysisModel
-    skills: SkillsModel
     recommendation: RecommendationModel
     insights: InsightsModel
 

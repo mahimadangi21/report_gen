@@ -1,6 +1,6 @@
 
 from models.schemas import (
-    ReportModel, ScoresModels, AnalysisModel, SkillsModel,
+    ReportModel, ScoresModels, AnalysisModel, 
     RecommendationModel, InsightsModel, EvaluationResponse
 )
 from utils.nlp_utils import (
@@ -154,11 +154,6 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
             strengths=strengths,
             weaknesses=weaknesses,
             skill_match_percentage=round(skill_match_percentage, 2)
-        ),
-        skills=SkillsModel(
-            technical_skills=all_candidate_tech,
-            soft_skills=all_candidate_soft,
-            missing_skills=missing_skills
         ),
         recommendation=RecommendationModel(
             decision=decision,
