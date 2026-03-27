@@ -20,7 +20,6 @@ class AnalysisModel(BaseModel):
     confidence_level: str
     strengths: List[str]
     weaknesses: List[str]
-    skill_match_percentage: float
 
 class RecommendationModel(BaseModel):
     decision: str

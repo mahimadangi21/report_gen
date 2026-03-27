@@ -14,13 +14,28 @@ TECHNICAL_SKILLS = [
     "php", "quality assurance", "data engineering", "business", "analytics", "mern",
     "dataenineering", "bussiness", "power bi", "mysql", "databricks", "apache airflow", 
     "spark sql", "star schema", "snowflake schema", "apache spark", "pyspark", "spark", 
-    "hadoop", "etl", "elt", "indexing", "primary key", "lambda", "data warehouse", "data lake"
+    "hadoop", "etl", "elt", "indexing", "primary key", "lambda", "data warehouse", "data lake",
+    "numpy", "matplotlib", "cnn", "rnn", "neural networks", "supervised learning", 
+    "unsupervised learning", "reinforcement learning", "regression", "classification",
+    "data structures", "algorithms", "dsa", "oop", "inheritance", "encapsulation", 
+    "abstraction", "polymorphism", "activation function", "epochs", "histogram", "bar graph", "string", "character array",
+    "bpmn", "rtm", "brd", "frd", "srs", "uml", "jira", "devops", "roi", "root cause analysis", "agile methodology", "waterfall",
+    "blockchain", "sql", "power bi", "advanced excel", "scrum", "kanban", "unit testing", "rest api"
 ]
+
+# Domain-specific skill groupings for better analysis
+DOMAIN_SKILLS = {
+    "Programming": ["python", "java", "c++", "c#", "javascript", "typescript", "php", "sql"],
+    "AI/ML": ["ml", "machine learning", "deep learning", "nlp", "ai", "tensorflow", "pytorch", "scikit-learn", "cnn", "rnn", "activation function", "epochs", "supervised learning", "unsupervised learning", "reinforcement learning", "blockchain"],
+    "Data Engineering": ["sql", "pandas", "data engineering", "etl", "elt", "hadoop", "spark", "databricks", "apache airflow", "data warehouse", "data lake", "nosql", "mongodb", "mysql", "power bi", "advanced excel"],
+    "Business Analysis": ["business", "analytics", "bpmn", "rtm", "brd", "frd", "srs", "uml", "jira", "roi", "root cause analysis", "agile methodology", "waterfall", "sprint", "scrum", "kanban"],
+    "Cloud/DevOps": ["docker", "kubernetes", "aws", "azure", "cloud", "git", "linux", "devops", "fastapi", "django", "flask", "rest api"]
+}
 
 SOFT_SKILLS = [
     "communication", "leadership", "teamwork", "problem solving", "critical thinking",
     "adaptability", "time management", "conflict resolution", "creativity",
-    "collaboration", "empathy", "work ethic", "attention to detail"
+    "collaboration", "empathy", "work ethic", "attention to detail", "emotional intelligence"
 ]
 
 def clean_text(text: str) -> str:

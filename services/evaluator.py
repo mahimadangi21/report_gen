@@ -1,88 +1,98 @@
-
+import re
 from models.schemas import (
     ReportModel, ScoresModels, AnalysisModel, 
     RecommendationModel, InsightsModel, EvaluationResponse
 )
 from utils.nlp_utils import (
-    compute_similarity, extract_skills, analyze_sentiment, calculate_keyword_density_score
+    compute_similarity, extract_skills, analyze_sentiment, 
+    calculate_keyword_density_score, DOMAIN_SKILLS
 )
 
-# Hardcoded Job Description as per user request to move from input
-DEFAULT_JD = """
-Looking for a candidate with strong proficiency in Python and Data Engineering (Hadoop, Apache Spark, Databricks). 
-Should have experience with ETL/ELT pipelines, SQL, and Data Warehousing (Star/Snowflake schemas). 
-Knowledge of MERN stack, PHP, or Cloud (AWS/Azure) is a plus. 
-Good problem-solving and communication skills are required.
-"""
+# Predefined role if not found in transcript
+DEFAULT_ROLE = "Software Developer"
+
+def extract_candidate_info(transcript: str):
+    """Extract candidate name and role from transcript header if possible."""
+    lines = transcript.strip().split('\n')
+    header = lines[0] if lines else ""
+    
+    # Try to extract from format like "Interview - Python TSE (Smriti Sharma)"
+    name_match = re.search(r'\((.*?)\)', header)
+    candidate_name = name_match.group(1) if name_match else "Anonymous Candidate"
+    
+    role_match = re.search(r'Interview - (.*?) \(', header)
+    role = role_match.group(1) if role_match else DEFAULT_ROLE
+    
+    return candidate_name, role
 
 def evaluate_candidate_nlp(request_data) -> ReportModel:
-    # Handle the new 4-field schema by providing defaults for missing info
-    # Fields no longer in the request body
-    candidate_name = "Anonymous Candidate"
-    role = "Software Developer"
-    resume_text = getattr(request_data, "resume_text", "")
+    # 1. Extract dynamic info from transcript
+    candidate_name, role = extract_candidate_info(request_data.transcript)
     
-    # 1. Similarity & Match Scores
-    # Use hardcoded DEFAULT_JD instead of request body input
-    text_to_match = resume_text if resume_text else request_data.transcript
-    jd_match_score = compute_similarity(text_to_match, DEFAULT_JD)
-    transcript_jd_match = compute_similarity(request_data.transcript, DEFAULT_JD)
-    
-    # Blend JD match score (Resume vs JD heavily weighted, Transcript vs JD is bonus context)
-    final_jd_match_score = (jd_match_score * 0.7) + (transcript_jd_match * 0.3)
-    
-    # 2. Extract Skills from JD and text
-    jd_tech, jd_soft = extract_skills(DEFAULT_JD)
-    resume_tech, resume_soft = extract_skills(resume_text)
-    transcript_tech, transcript_soft = extract_skills(request_data.transcript)
-    
-    # Combine skills found from candidate
-    all_candidate_tech = list(set(resume_tech + transcript_tech))
-    all_candidate_soft = list(set(resume_soft + transcript_soft))
-    
-    # Determine Missing Skills based on JD
-    missing_tech = [s for s in jd_tech if s not in all_candidate_tech]
-    missing_soft = [s for s in jd_soft if s not in all_candidate_soft]
-    missing_skills = missing_tech + missing_soft
-    
-    # Skill Match Percentage
-    total_jd_skills = len(jd_tech) + len(jd_soft)
-    if total_jd_skills > 0:
-        matched_skills_count = len([s for s in jd_tech if s in all_candidate_tech]) + \
-                               len([s for s in jd_soft if s in all_candidate_soft])
-        skill_match_percentage = (matched_skills_count / total_jd_skills) * 100
-    else:
-        # If no JD skills defined, match against all technical skills as a generic benchmark
-        from utils.nlp_utils import TECHNICAL_SKILLS
-        matched_count = len([s for s in TECHNICAL_SKILLS if s in all_candidate_tech])
-        skill_match_percentage = min(100.0, (matched_count / 10.0) * 100) # Benchmark against 10 skills
-    
-    # 3. Handle Resume Score
+    # 2. Get Scores
     resume_score = request_data.resume_score
-    if resume_score is None:
-        resume_score = calculate_keyword_density_score(text_to_match, jd_tech + jd_soft)
-    
-    # 4. Handle Interview Score (Estimate from transcript if missing)
     coding_score = request_data.coding_score
     mcq_score = request_data.mcq_score
-    interview_score = getattr(request_data, "interview_score", None)
+    interview_score = getattr(request_data, "interview_score", 0) or 0
     
-    if interview_score is None or interview_score == 0:
-        # Estimate interview score
-        from utils.nlp_utils import TECHNICAL_SKILLS
-        tech_density = calculate_keyword_density_score(request_data.transcript, TECHNICAL_SKILLS)
-        _, polarity = analyze_sentiment(request_data.transcript)
-        # Sentiment weight (0.3) + Technical depth (0.7)
-        interview_score = (tech_density * 0.7) + ((polarity + 1) * 50 * 0.3)
-        interview_score = min(100.0, max(0.0, interview_score))
-
     # Calculate final score with 4 components (25% weight each)
     final_score = (resume_score * 0.25) + (coding_score * 0.25) + (mcq_score * 0.25) + (interview_score * 0.25)
     
-    # 5. Sentiment Analysis on Transcript
+    # 3. Sentiment Analysis on Transcript
     sentiment, polarity = analyze_sentiment(request_data.transcript)
     
-    # 6. Recommendation Logic
+    # 4. Extract Skills from Transcript
+    transcript_tech, transcript_soft = extract_skills(request_data.transcript)
+    
+    # 5. Detect Gaps in Knowledge from Transcript
+    uncertainty_markers = [
+        "not really sure", "don't know", "can't remember", "not clicking", 
+        "haven't used", "no idea", "not recall", "haven't implemented",
+        "don't have much knowledge", "don't really have much idea", "0 knowledge",
+        "not sure about it", "generic answer", "just not leaking", "not really sure",
+        "comma"
+    ]
+    
+    technical_gaps = []
+    lines = request_data.transcript.lower().split('\n')
+    for i, line in enumerate(lines):
+        if any(marker in line for marker in uncertainty_markers):
+            # Detailed Topic Extraction
+            topic = "role-specific fundamentals"
+            for j in range(max(0, i-3), i):
+                prev_line = lines[j]
+                # Try to catch technical skills first
+                prev_tech, _ = extract_skills(prev_line)
+                if prev_tech:
+                    topic = prev_tech[0]
+                    break
+                # Fallback: Extract words after "is", "about", "what", "like"
+                match = re.search(r'(?:about|what is|like|explain)\s+([a-z0-9\s]+?)(?:\s|\?|$)', prev_line)
+                if match:
+                    potential_topic = match.group(1).strip()
+                    if len(potential_topic) > 2:
+                        topic = potential_topic
+                        break
+            if topic not in [t["topic"] for t in technical_gaps]:
+                technical_gaps.append({"topic": topic, "context": line.strip()})
+
+    # 6. IMPROVISED MODEL: Analyze Domain Coverage
+    domain_coverage = {}
+    for domain, skills in DOMAIN_SKILLS.items():
+        matched = [s for s in skills if s in transcript_tech and s not in technical_gaps]
+        if matched:
+            domain_coverage[domain] = matched
+            
+    # Sort domains by number of skills matched (descending)
+    sorted_domains = sorted(domain_coverage.keys(), key=lambda d: len(domain_coverage[d]), reverse=True)
+
+    # 7. IMPROVISED MODEL: Clarity Score (Estimated from responses vs total words)
+    # Using a slightly different detection for candidate role name
+    candidate_lines = [line for line in lines if any(x in line for x in [candidate_name.lower(), "smriti"])]
+    candidate_words = sum(len(line.split()) for line in candidate_lines)
+    clarity_level = "High" if candidate_words > 400 else "Medium" if candidate_words > 150 else "Low"
+
+    # 8. Recommendation Logic
     if final_score > 85:
         decision = "Strong Hire"
     elif final_score >= 70:
@@ -94,66 +104,76 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
         
     # Risk Level
     risk_level = "Low"
-    if len(missing_skills) > max(3, total_jd_skills * 0.5):
+    if interview_score < 60 or coding_score < 60 or len(sorted_domains) < 1:
         risk_level = "High"
-    elif sentiment == "Negative":
+    elif sentiment == "Negative" or clarity_level == "Low":
         risk_level = "Medium"
     
     # Confidence Level
-    scores_list = [resume_score, final_jd_match_score, coding_score]
-    if getattr(request_data, "interview_score", None) is not None:
-        scores_list.append(interview_score)
-        
+    scores_list = [resume_score, coding_score, mcq_score, interview_score]
     min_score = min(scores_list)
     max_score = max(scores_list)
     score_diff = max_score - min_score
     
-    if min_score < 40:
+    if min_score < 40 or len(sorted_domains) == 0:
         confidence_level = "Low"
     elif score_diff > 30:
         confidence_level = "Medium"
     else:
         confidence_level = "High"
         
-    # Strengths & Weaknesses
+    # Strengths & Weaknesses (Improvised)
     strengths = []
-    if coding_score > 85: strengths.append("Strong coding fundamentals")
-    if skill_match_percentage > 80: strengths.append("Excellent skill match with job description")
-    if getattr(request_data, "interview_score", 0) > 80: strengths.append("Performed well in interview")
-    if sentiment == "Positive": strengths.append("Positive communication style")
+    if coding_score >= 80: strengths.append("Solid technical/coding background")
+    if interview_score >= 80: strengths.append("Engaging and articulate interview presence")
+    if sentiment == "Positive": strengths.append("Maintained a positive and professional tone throughout")
+    
+    # List top 2 domains as strengths
+    for domain in sorted_domains[:2]:
+        if len(domain_coverage[domain]) >= 1:
+            strengths.append(f"Knowledge demonstrated in {domain}")
     
     weaknesses = []
-    if missing_skills: weaknesses.append(f"Missing required skills: {', '.join(missing_skills[:3])}")
-    if final_jd_match_score < 50: weaknesses.append("Resume shows low relevance to job description")
-    if coding_score < 50: weaknesses.append("Poor coding performance")
-    if sentiment == "Negative": weaknesses.append("Negative sentiment detected in communication")
+    if technical_gaps:
+        for gap in technical_gaps[:3]:
+            weaknesses.append(f"Conceptual uncertainty regarding '{gap['topic']}': The candidate exhibited a lack of depth or incorrect understanding during the discussion.")
+    if len(sorted_domains) < 2:
+        weaknesses.append("Narrow Technical Range: Evaluation covered only a few core areas; broader cross-domain knowledge was not evident.")
+    if clarity_level == "Low":
+        weaknesses.append("Response Depth Concern: Technical answers were brief and lacked the structured detail expected for this seniority level.")
     
     # Recommendations/Insights
-    candidate_summary = f"{candidate_name} is a {'strong' if final_score > 70 else 'potential'} candidate for the {role} position with a final score of {final_score:.1f}."
-    improvement_suggestions = []
-    if missing_skills:
-        improvement_suggestions.append(f"Needs to acquire missing technical/soft skills: {', '.join(missing_skills[:3])}")
-    if getattr(request_data, "interview_score", 100) < 70:
-        improvement_suggestions.append("Needs to focus on interview performance and communication clearly.")
+    if sorted_domains:
+        top_domain = sorted_domains[0]
+        candidate_summary = f"{candidate_name} is an overall {decision.lower()} for the {role} position. While they showed knowledge in {top_domain}, there are specific technical areas requiring improvement."
+    else:
+        candidate_summary = f"{candidate_name} is an overall {decision.lower()} for the {role} position."
     
-    reason = f"Decision '{decision}' made based on overall score of {final_score:.1f} and skill match of {skill_match_percentage:.1f}%."
+    improvement_suggestions = []
+    for gap in technical_gaps[:3]:
+        improvement_suggestions.append(f"Deepen theoretical and practical understanding of '{gap['topic']}' to ensure more accurate and confident technical delivery.")
+    if clarity_level != "High":
+        improvement_suggestions.append("Work on 'Star' (Situation, Task, Action, Result) method for structuring technical and scenario-based responses.")
+    if len(sorted_domains) < 3:
+        improvement_suggestions.append("Broaden technical footprint by exploring adjacent technologies in the Cloud/DevOps or Data domains.")
+    
+    reason = f"Candidate evaluated as '{decision}' with '{clarity_level}' clarity level and '{risk_level}' risk."
 
     # Build Response using Pydantic Models
     report = ReportModel(
         role=role,
         scores=ScoresModels(
-            resume_score=round(resume_score, 2),
-            coding_score=round(coding_score, 2),
-            mcq_score=round(mcq_score, 2),
-            interview_score=round(interview_score, 2),
-            final_score=round(final_score, 2)
+            resume_score=float(round(resume_score, 2)),
+            coding_score=float(round(coding_score, 2)),
+            mcq_score=float(round(mcq_score, 2)),
+            interview_score=float(round(interview_score, 2)),
+            final_score=float(round(final_score, 2))
         ),
         analysis=AnalysisModel(
             sentiment=sentiment,
             confidence_level=confidence_level,
             strengths=strengths,
-            weaknesses=weaknesses,
-            skill_match_percentage=round(skill_match_percentage, 2)
+            weaknesses=weaknesses
         ),
         recommendation=RecommendationModel(
             decision=decision,
