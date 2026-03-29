@@ -33,10 +33,9 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
     resume_score = request_data.resume_score
     coding_score = request_data.coding_score
     mcq_score = request_data.mcq_score
-    interview_score = getattr(request_data, "interview_score", 0) or 0
     
-    # Calculate final score with 4 components (25% weight each)
-    final_score = (resume_score * 0.25) + (coding_score * 0.25) + (mcq_score * 0.25) + (interview_score * 0.25)
+    # Calculate final score with 3 components (33.3% weight each)
+    final_score = (resume_score + coding_score + mcq_score) / 3
     
     # 3. Sentiment Analysis on Transcript
     sentiment, polarity = analyze_sentiment(request_data.transcript)
@@ -104,13 +103,13 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
         
     # Risk Level
     risk_level = "Low"
-    if interview_score < 60 or coding_score < 60 or len(sorted_domains) < 1:
+    if coding_score < 60 or len(sorted_domains) < 1:
         risk_level = "High"
     elif sentiment == "Negative" or clarity_level == "Low":
         risk_level = "Medium"
     
     # Confidence Level
-    scores_list = [resume_score, coding_score, mcq_score, interview_score]
+    scores_list = [resume_score, coding_score, mcq_score]
     min_score = min(scores_list)
     max_score = max(scores_list)
     score_diff = max_score - min_score
@@ -125,7 +124,6 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
     # Strengths & Weaknesses (Improvised)
     strengths = []
     if coding_score >= 80: strengths.append("Solid technical/coding background")
-    if interview_score >= 80: strengths.append("Engaging and articulate interview presence")
     if sentiment == "Positive": strengths.append("Maintained a positive and professional tone throughout")
     
     # List top 2 domains as strengths
@@ -166,7 +164,6 @@ def evaluate_candidate_nlp(request_data) -> ReportModel:
             resume_score=float(round(resume_score, 2)),
             coding_score=float(round(coding_score, 2)),
             mcq_score=float(round(mcq_score, 2)),
-            interview_score=float(round(interview_score, 2)),
             final_score=float(round(final_score, 2))
         ),
         analysis=AnalysisModel(
